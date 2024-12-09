@@ -4,37 +4,49 @@
             <Poster ref="posterRef" v-show="false" />
             <h1 class="header">选出你的年度新番 Top3!</h1>
 
-            <n-flex justify="center">
+            <n-collapse :default-expanded-names="['panel']" arrow-placement="right" class="collapse">
+                <n-collapse-item name="panel" >
+                    <template #header>
+                        <n-text class="collapse-text">
+                        折叠
+                        </n-text>
+                    </template>
 
-                <n-flex justify="center" class="input-container" size="large">
-                    <h3 style="margin: 0 -10px 0 0; transform: translateY(4px);">Bangumi ID :</h3>
-                    <n-input id="user-id" v-model:value="userId" type="text" placeholder="不是昵称" />
+                    <n-flex justify="center">
 
-                    <n-button @click="fetchAnimeList" type="primary" style="color: white;">
-                        获取 Bangumi 账户信息
-                    </n-button>
+                        <n-flex justify="center" class="input-container" size="large">
+                            <h3 style="margin: 0 -10px 0 0; transform: translateY(4px);">Bangumi ID :</h3>
+                            <n-input id="user-id" v-model:value="userId" type="text" placeholder="不是昵称" />
 
-                    <n-switch v-model:value="chooseFromCollectedAnime" :disabled="!userList.length > 0" size="large"
-                        style="margin-top: 4px;">
-                        <template #checked>
-                            从收藏的新番中选择
-                        </template>
-                        <template #unchecked>
-                            从收藏的新番中选择
-                        </template>
-                    </n-switch>
+                            <n-button @click="fetchAnimeList" type="primary" style="color: white;">
+                                获取 Bangumi 账户信息
+                            </n-button>
 
-                    <n-flex>
-                        <h3 id="nickname" style="margin: 0 -10px 0 10px; transform: translateY(4px);">昵称 :</h3>
-                        <n-input id="user-id" v-model:value="userNickname" type="text" placeholder="昵称" />
+                            <n-switch v-model:value="chooseFromCollectedAnime" :disabled="!userList.length > 0" size="large"
+                                style="margin-top: 4px;">
+                                <template #checked>
+                                    从收藏的新番中选择
+                                </template>
+                                <template #unchecked>
+                                    从收藏的新番中选择
+                                </template>
+                            </n-switch>
+
+                            <n-flex>
+                                <h3 id="nickname" style="margin: 0 -10px 0 10px; transform: translateY(4px);">昵称 :</h3>
+                                <n-input id="user-id" v-model:value="userNickname" type="text" placeholder="海报上的昵称" />
+                            </n-flex>
+
+                            <n-button @click="exportPoster" secondary type="success" style="width: 100px;">
+                                导出海报
+                            </n-button>
+                        </n-flex>
+
                     </n-flex>
+                </n-collapse-item>
+            </n-collapse>
 
-                    <n-button @click="exportPoster" secondary type="success" style="width: 100px;">
-                        导出海报
-                    </n-button>
-                </n-flex>
-
-            </n-flex>
+            
 
             <n-divider style="margin: 20px 0 10px 0;" />
 
@@ -130,6 +142,9 @@ import {
     NSwitch,
     NSpin,
     NTooltip,
+    NCollapse,
+    NCollapseItem,
+    NText,
     useNotification
 } from 'naive-ui';
 import axios from 'axios';
@@ -271,8 +286,8 @@ const onTouchStart = (anime, event, srcList=null, srcIndex=null) => {
 
     const dragImageElement = document.createElement('img');
     dragImageElement.src = anime.image;
-    dragImageElement.style.width = '100px';
-    dragImageElement.style.height = '142px';
+    dragImageElement.style.width = '75px';
+    dragImageElement.style.height = '106.5px';
     dragImageElement.style.borderRadius = '10px';
     dragImageElement.style.opacity = '0.8';
     dragImageElement.style.border = '4px solid #FF1493';
@@ -282,8 +297,8 @@ const onTouchStart = (anime, event, srcList=null, srcIndex=null) => {
         const moveTouch = moveEvent.touches[0];
 
         dragImageElement.style.position = 'absolute';
-        dragImageElement.style.left = `${moveTouch.clientX - 50}px`;
-        dragImageElement.style.top = `${moveTouch.clientY - 71}px`;
+        dragImageElement.style.left = `${moveTouch.clientX - 37.5}px`;
+        dragImageElement.style.top = `${moveTouch.clientY - 53}px`;
     };
 
     const endHandler = (endEvent) => {
@@ -294,22 +309,22 @@ const onTouchStart = (anime, event, srcList=null, srcIndex=null) => {
         positiveRefs.value.forEach((slot, index) => {
             const rect = slot.getBoundingClientRect();
             if (clientX >= rect.left && clientX <= rect.right && clientY >= rect.top && clientY <= rect.bottom) {
-                positiveList.value[index] = anime;
-
                 if (srcList) {
                     srcList[srcIndex] = { id: 0, name: '', image: '' };
                 }
+
+                positiveList.value[index] = anime;
             }
         })
 
         negativeRefs.value.forEach((slot, index) => {
             const rect = slot.getBoundingClientRect();
             if (clientX >= rect.left && clientX <= rect.right && clientY >= rect.top && clientY <= rect.bottom) {
-                negativeList.value[index] = anime;
-
                 if (srcList) {
                     srcList[srcIndex] = { id: 0, name: '', image: '' };
                 }
+
+                negativeList.value[index] = anime;
             }
         })
 
@@ -391,8 +406,6 @@ const onDropDelete = (event) => {
 }
 
 const exportPoster = async () => {
-    isLoading.value = true;
-
     if (userNickname.value === '') {
         notify.warning({
             title: '请输入昵称',
@@ -409,12 +422,13 @@ const exportPoster = async () => {
     }
 
     if (posterRef.value) {
+        isLoading.value = true;
         try {
             await posterRef.value.exportPng(userNickname.value, userAvatar.value, positiveList.value, negativeList.value);
 
             setTimeout(() => {
                 isLoading.value = false;
-            }, 2000);
+            }, 5000);
         } catch (error) {
             console.error('Error during export:', error);
             notify.warning({
@@ -436,8 +450,33 @@ const exportPoster = async () => {
 
 @media (max-width: 600px) {
     .header {
+        padding-left: 20px;
         font-size: 24px;
     }
+}
+
+.collapse {
+    margin-top: -68px;
+}
+
+.collapse-text {
+    font-size: 24px;
+    font-weight: bold; 
+    user-select: none;
+    margin-left: 20px;
+}
+
+@media (max-width: 600px) {
+    .collapse {
+    margin-top: -58px;
+}
+
+.collapse-text {
+    font-size: 18px;
+    font-weight: bold; 
+    user-select: none;
+    margin-left: 12px;
+}
 }
 
 #user-id {
@@ -449,7 +488,6 @@ const exportPoster = async () => {
 
 .container {
     height: 100vh;
-    padding: 0;
     display: flex;
     flex-direction: column;
     user-select: none;
@@ -494,6 +532,20 @@ const exportPoster = async () => {
     transition: all 0.1s;
 }
 
+@media (max-width: 600px) {
+    .slot {
+        width: 75px;
+        height: 106.5px;
+        border-radius: 8px;
+    }
+    .slot-image {
+        width: 75px;
+        height: 106.5px;
+        border-radius: 8px;
+        margin: 0px 10px 0px 10px;
+    }
+}
+
 .slot-image:hover {
     box-shadow: 0px 0px 15px #FF1493;
     cursor: pointer;
@@ -508,10 +560,12 @@ const exportPoster = async () => {
 .anime-list-container {
     width: 100vw;
     flex: 1;
-    min-height: 30vh;
+    min-height: 40vh;
     box-sizing: border-box;
     padding: 10px 0 10px 10px;
     overflow-y: auto;
+    display: flex;
+    align-content: flex-start;
 }
 
 .anime-list-container img {
@@ -519,6 +573,15 @@ const exportPoster = async () => {
     height: 106.5px;
     border-radius: 10px;
     transition: all 0.1s;
+}
+
+@media (max-width: 600px) {
+    .anime-list-container img {
+        width: 50px;
+        height: 71px;
+        border-radius: 10px;
+        transition: all 0.1s;
+    }
 }
 
 .anime-list-container img:hover {
