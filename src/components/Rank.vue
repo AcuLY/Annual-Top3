@@ -1,85 +1,123 @@
 <template>
-<n-spin :show="isLoading">
-    <n-flex vertical class="container">
-        <Poster ref="posterRef" v-show="false"/>
-        <h1 style="display: flex; justify-content: center; margin-bottom: 0px;">选出你的年度新番 Top3！</h1>
+    <n-spin :show="isLoading">
+        <n-flex vertical class="container">
+            <Poster ref="posterRef" v-show="false" />
+            <h1 class="header">选出你的年度新番 Top3!</h1>
 
-        <n-flex justify="center" class="input-container">
-            <h3 style="margin: 0 -10px 0 0; transform: translateY(4px);">Bangumi ID :</h3>
-            <n-input id="user-id" v-model:value="userId" type="text" placeholder="不是昵称" />
+            <n-flex justify="center">
 
-            <n-button id="fetch-button" @click="fetchAnimeList" type="primary" style="color: white;">
-                获取 Bangumi 账户信息
-            </n-button>
+                <n-flex justify="center" class="input-container" size="large">
+                    <h3 style="margin: 0 -10px 0 0; transform: translateY(4px);">Bangumi ID :</h3>
+                    <n-input id="user-id" v-model:value="userId" type="text" placeholder="不是昵称" />
 
-            <n-switch v-model:value="chooseFromCollectedAnime" :disabled="!userList.length > 0" size="large" style="transform: translateY(4px);">
-                <template #checked>
-                从收藏的新番中选择
-                </template>
-                <template #unchecked>
-                从收藏的新番中选择
-                </template>
-            </n-switch>
+                    <n-button @click="fetchAnimeList" type="primary" style="color: white;">
+                        获取 Bangumi 账户信息
+                    </n-button>
 
-            <h3 id="nickname" style="margin: 0 -10px 0 10px; transform: translateY(4px);">昵称 :</h3>
-            <n-input id="user-id" v-model:value="userNickname" type="text" placeholder="昵称" />
+                    <n-switch v-model:value="chooseFromCollectedAnime" :disabled="!userList.length > 0" size="large"
+                        style="margin-top: 4px;">
+                        <template #checked>
+                            从收藏的新番中选择
+                        </template>
+                        <template #unchecked>
+                            从收藏的新番中选择
+                        </template>
+                    </n-switch>
 
-            <n-button id="fetch-button" @click="exportPoster" secondary type="success">
-                导出海报
-            </n-button>
-        </n-flex>
+                    <n-flex>
+                        <h3 id="nickname" style="margin: 0 -10px 0 10px; transform: translateY(4px);">昵称 :</h3>
+                        <n-input id="user-id" v-model:value="userNickname" type="text" placeholder="昵称" />
+                    </n-flex>
 
-        <n-divider style="margin: 10px;" />
+                    <n-button @click="exportPoster" secondary type="success" style="width: 100px;">
+                        导出海报
+                    </n-button>
+                </n-flex>
 
-        <n-flex class="rank-container" justify="center">
-            <n-flex vertical>
-                <h2 style="display: flex; justify-content: center; margin: 0px;">正向 Top3</h2>
+            </n-flex>
 
-                <div class="positive-negative-container">
-                    <div v-for="(anime, index) in positiveList" :key="index">
-                        <n-flex vertical>
-                            <img :src="anime.image" :alt="anime.name" :title="anime.name" class="slot-image" v-if="anime.id !== 0" @dragover.prevent
-                                @dragstart="onDragStartFromSlot(index, positiveList, $event)" @drop="onDrop(index, positiveList, $event)" @click="onSlotClick(positiveList, index)">
-                            <div v-else class="slot" @dragover.prevent @drop="onDrop(index, positiveList, $event)" @click="onSlotClick(positiveList, index)"></div>
+            <n-divider style="margin: 20px 0 10px 0;" />
 
-                            <h1 :style="{ display: 'flex', justifyContent: 'center', margin: 0, color: index == 0 ? '#B7B7B7' : index == 1 ? '#FFE562' : '#BF7B2F' }">
-                                {{ index == 0 ? 2 : index == 1 ? 1 : 3 }}
-                            </h1>
-                        </n-flex>
+            <n-flex class="rank-container" justify="center">
+                <n-flex vertical>
+                    <h2 style="display: flex; justify-content: center; margin: 0px;">正向 Top3</h2>
+
+                    <div class="positive-negative-container">
+                        <div v-for="(anime, index) in positiveList" :key="index" :ref="(el) => positiveRefs[index] = el">
+                            <n-flex vertical>
+                                <n-tooltip trigger="hover" v-if="anime.id !== 0">
+                                    <template #trigger>
+                                        <img :src="anime.image" class="slot-image" @dragover.prevent
+                                            @dragstart="onDragStartFromSlot(index, positiveList, $event)"
+                                            @touchstart="onTouchStart(anime, $event, positiveList, index)"
+                                            @drop="onDrop(index, positiveList, $event)"
+                                            @click="onSlotClick(positiveList, index)">
+                                    </template>
+                                    {{ anime.name }}
+                                </n-tooltip>
+
+                                <div v-else class="slot" @dragover.prevent @drop="onDrop(index, positiveList, $event)"
+                                    @click="onSlotClick(positiveList, index)"></div>
+
+                                <h1
+                                    :style="{ display: 'flex', justifyContent: 'center', margin: 0, color: index == 0 ? '#B7B7B7' : index == 1 ? '#FFE562' : '#BF7B2F' }">
+                                    {{ index == 0 ? 2 : index == 1 ? 1 : 3 }}
+                                </h1>
+                            </n-flex>
+                        </div>
                     </div>
+                </n-flex>
+
+                <n-flex vertical>
+                    <h2 style="display: flex; justify-content: center; margin: 0px;">反向 Top3</h2>
+
+                    <div class="positive-negative-container">
+                        <div v-for="(anime, index) in negativeList" :key="index" :ref="(el) => negativeRefs[index] = el">
+                            <n-flex vertical>
+                                <n-tooltip trigger="hover" v-if="anime.id !== 0">
+                                    <template #trigger>
+                                        <img :src="anime.image" class="slot-image" @dragover.prevent
+                                            @dragstart="onDragStartFromSlot(index, negativeList, $event)"
+                                            @touchstart="onTouchStart(anime, $event, negativeList, index)"
+                                            @drop="onDrop(index, negativeList, $event)"
+                                            @click="onSlotClick(negativeList, index)">
+                                    </template>
+                                    {{ anime.name }}
+                                </n-tooltip>
+
+                                <div v-else class="slot" @dragover.prevent @drop="onDrop(index, negativeList, $event)"
+                                    @click="onSlotClick(negativeList, index)"></div>
+
+                                <h1
+                                    :style="{ display: 'flex', justifyContent: 'center', margin: 0, color: index == 0 ? '#B7B7B7' : index == 1 ? '#FFE562' : '#BF7B2F' }">
+                                    {{ index == 0 ? 2 : index == 1 ? 1 : 3 }}
+                                </h1>
+                            </n-flex>
+                        </div>
+                    </div>
+                </n-flex>
+
+            </n-flex>
+
+            <n-divider style="margin: 10px;" />
+
+            <n-flex class="anime-list-container" draggable="true" @dragover.prevent @drop="onDropDelete($event)">
+                <div v-for="anime in animeList" :key="anime.id">
+                    <n-tooltip trigger="hover">
+                        <template #trigger>
+                            <img :src="anime.image"
+                                :class="clickSource && clickSource.name === anime.name ? 'selected-anime' : ''"
+                                @dragstart="onDragStartFromList(anime, $event)"
+                                @touchstart="onTouchStart(anime, $event)" @click="onListClick(anime)"
+                                loading="lazy">
+                        </template>
+                        {{ anime.name }}
+                    </n-tooltip>
                 </div>
             </n-flex>
-            
-            <n-flex vertical>
-                <h2 style="display: flex; justify-content: center; margin: 0px;">反向 Top3</h2>
 
-                <div class="positive-negative-container">
-                    <div v-for="(anime, index) in negativeList" :key="index">
-                        <n-flex vertical>
-                            <img :src="anime.image" :alt="anime.name" :title="anime.name" class="slot-image" v-if="anime.id !== 0" @dragover.prevent
-                                @dragstart="onDragStartFromSlot(index, negativeList, $event)" @drop="onDrop(index, negativeList, $event)" @click="onSlotClick(negativeList, index)">
-                            <div v-else class="slot" @dragover.prevent @drop="onDrop(index, negativeList, $event)" @click="onSlotClick(negativeList, index)"></div>
-
-                            <h1 :style="{ display: 'flex', justifyContent: 'center', margin: 0, color: index == 0 ? '#B7B7B7' : index == 1 ? '#FFE562' : '#BF7B2F' }">
-                                {{ index == 0 ? 2 : index == 1 ? 1 : 3 }}
-                            </h1>
-                        </n-flex>
-                    </div>
-                </div>
-            </n-flex>
-            
         </n-flex>
-
-        <n-divider style="margin: 10px;" />
-
-        <n-flex class="anime-list-container">
-            <div v-for="anime in animeList" :key="anime.id">
-                <img :src="anime.image" :alt="anime.name" :class="clickSource && clickSource.name === anime.name ? 'selected-anime' : ''" :title="anime.name" @dragstart="onDragStartFromList(anime, $event)" @click="onListClick(anime)" loading="lazy">
-            </div>
-        </n-flex>
-
-    </n-flex>
-</n-spin>
+    </n-spin>
 </template>
 
 <script setup>
@@ -91,6 +129,7 @@ import {
     NDivider,
     NSwitch,
     NSpin,
+    NTooltip,
     useNotification
 } from 'naive-ui';
 import axios from 'axios';
@@ -105,13 +144,7 @@ const isLoading = ref(false);
 
 const userId = ref('');
 const userNickname = ref('');
-const userAvater = computed(() => {
-    if (userId.value) {
-        return `https://api.bgm.tv/v0/users/${userId.value}/avatar?type=large`;
-    } else {
-        return 'https://lain.bgm.tv/pic/user/m/icon.jpg';
-    }
-})
+const userAvatar = ref('https://lain.bgm.tv/pic/user/m/icon.jpg');
 const chooseFromCollectedAnime = ref(false);
 
 const fetchAnimeList = () => {
@@ -167,13 +200,14 @@ const fetchAnimeList = () => {
         .finally(() => {
             isLoading.value = false;
         });
-    
+
 }
 
 const fetchNickname = () => {
     axios.get(`https://api.bgm.tv/v0/users/${userId.value}`)
         .then(response => {
             userNickname.value = response.data['nickname'];
+            userAvatar.value = response.data['avatar']['large'];
         })
         .catch(error => {
             notify.error({
@@ -188,41 +222,11 @@ const animeList = computed(() => {
     return chooseFromCollectedAnime.value ? userList.value : fullList;
 })
 
-const positiveList = ref([
-    {
-        'id': 0,
-        'name': '',
-        'image': ''
-    },
-    {
-        'id': 0,
-        'name': '',
-        'image': ''
-    },
-    {
-        'id': 0,
-        'name': '',
-        'image': ''
-    }
-]);
+const positiveList = ref([{ 'id': 0, 'name': '', 'image': '' }, { 'id': 0, 'name': '', 'image': '' }, { 'id': 0, 'name': '', 'image': '' }]);
+const negativeList = ref([{ 'id': 0, 'name': '', 'image': '' }, { 'id': 0, 'name': '', 'image': '' }, { 'id': 0, 'name': '', 'image': '' }]);
 
-const negativeList = ref([
-    {
-        'id': 0,
-        'name': '',
-        'image': ''
-    },
-    {
-        'id': 0,
-        'name': '',
-        'image': ''
-    },
-    {
-        'id': 0,
-        'name': '',
-        'image': ''
-    }
-]);
+const positiveRefs = ref([]);
+const negativeRefs = ref([]);
 
 const clickSource = ref(null);
 const dragSource = ref(null);
@@ -260,6 +264,70 @@ const onDragStartFromList = (anime, event) => {
     setTimeout(() => {
         document.body.removeChild(dragImage);
     }, 0);
+};
+
+const onTouchStart = (anime, event, srcList=null, srcIndex=null) => {
+    event.preventDefault();
+
+    const dragImageElement = document.createElement('img');
+    dragImageElement.src = anime.image;
+    dragImageElement.style.width = '100px';
+    dragImageElement.style.height = '142px';
+    dragImageElement.style.borderRadius = '10px';
+    dragImageElement.style.opacity = '0.8';
+    dragImageElement.style.border = '4px solid #FF1493';
+    document.body.appendChild(dragImageElement);
+
+    const moveHandler = (moveEvent) => {
+        const moveTouch = moveEvent.touches[0];
+
+        dragImageElement.style.position = 'absolute';
+        dragImageElement.style.left = `${moveTouch.clientX - 50}px`;
+        dragImageElement.style.top = `${moveTouch.clientY - 71}px`;
+    };
+
+    const endHandler = (endEvent) => {
+        const touchEnd = endEvent.changedTouches[0];
+        const clientX = touchEnd.clientX;
+        const clientY = touchEnd.clientY;
+
+        positiveRefs.value.forEach((slot, index) => {
+            const rect = slot.getBoundingClientRect();
+            if (clientX >= rect.left && clientX <= rect.right && clientY >= rect.top && clientY <= rect.bottom) {
+                positiveList.value[index] = anime;
+
+                if (srcList) {
+                    srcList[srcIndex] = { id: 0, name: '', image: '' };
+                }
+            }
+        })
+
+        negativeRefs.value.forEach((slot, index) => {
+            const rect = slot.getBoundingClientRect();
+            if (clientX >= rect.left && clientX <= rect.right && clientY >= rect.top && clientY <= rect.bottom) {
+                negativeList.value[index] = anime;
+
+                if (srcList) {
+                    srcList[srcIndex] = { id: 0, name: '', image: '' };
+                }
+            }
+        })
+
+        if (srcList) {
+            const animeListContainer = document.querySelector('.anime-list-container');
+            const rect = animeListContainer.getBoundingClientRect();
+            if (clientX >= rect.left && clientX <= rect.right && clientY >= rect.top && clientY <= rect.bottom) {
+                srcList[srcIndex] = { id: 0, name: '', image: '' };
+            }
+        }
+
+        document.body.removeChild(dragImageElement);
+        window.removeEventListener('touchmove', moveHandler);
+        window.removeEventListener('touchend', endHandler);
+    };
+
+    window.addEventListener('touchmove', moveHandler, { passive: false });
+    window.addEventListener('touchend', endHandler);
 };
 
 const onDragStartFromSlot = (index, slot, event) => {
@@ -307,7 +375,24 @@ const onDrop = (index, slot, event) => {
     dragSource.value = null;
 };
 
-const exportPoster = () => {
+const onDropDelete = (event) => {
+    const data = event.dataTransfer.getData('application/json');
+
+    if (data) {
+        if (dragSource.value?.type === 'slot') {
+            const sourceIndex = dragSource.value.index;
+            const srcSlot = dragSource.value.src;
+
+            srcSlot[sourceIndex] = { id: 0, name: '', image: '' };
+        }
+    }
+
+    dragSource.value = null;
+}
+
+const exportPoster = async () => {
+    isLoading.value = true;
+
     if (userNickname.value === '') {
         notify.warning({
             title: '请输入昵称',
@@ -322,14 +407,39 @@ const exportPoster = () => {
         });
         return;
     }
+
     if (posterRef.value) {
-        posterRef.value.exportPng(userNickname.value, userAvater.value, positiveList.value, negativeList.value);
+        try {
+            await posterRef.value.exportPng(userNickname.value, userAvatar.value, positiveList.value, negativeList.value);
+
+            setTimeout(() => {
+                isLoading.value = false;
+            }, 2000);
+        } catch (error) {
+            console.error('Error during export:', error);
+            notify.warning({
+                title: '导出失败，可能是网络问题或者服务器未开启',
+                duration: 5000
+            });
+            isLoading.value = false;
+        }
     }
 }
 
 </script>
 
 <style scoped>
+.header {
+    display: flex; 
+    justify-content: center;
+}
+
+@media (max-width: 600px) {
+    .header {
+        font-size: 24px;
+    }
+}
+
 #user-id {
     width: 120px;
     height: 35px;
@@ -346,7 +456,7 @@ const exportPoster = () => {
 }
 
 .input-container {
-    margin: 0;
+    width: 80vw;
 }
 
 .rank-container {

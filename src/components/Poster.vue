@@ -99,10 +99,11 @@ const drawPost = (nickname, avatar, positiveList, negativeList) => {
         }
     }
 
-    function loadImage(src) {
+    function loadImage(src, isLocal=false) {
         return new Promise((resolve, reject) => {
             const img = new Image();
-            img.src = src;
+            img.crossOrigin = 'anonymous';
+            img.src =  isLocal ? src : `https://search.bgmss.fun/proxy?url=${src}`;
             img.onload = () => resolve(img);
             img.onerror = reject;
         });
@@ -124,8 +125,8 @@ const drawPost = (nickname, avatar, positiveList, negativeList) => {
 
     Promise.all([
         loadImage(avatar), 
-        loadImage('/bgm不知道多少.png'),
-        loadImage('/bgm38.png'),
+        loadImage('/bgm不知道多少.png', true),
+        loadImage('/bgm38.png', true),
         loadImage(positiveList[1].image),
         loadImage(positiveList[0].image),
         loadImage(positiveList[2].image),
@@ -157,11 +158,12 @@ const drawPost = (nickname, avatar, positiveList, negativeList) => {
         ctx.fillText(userName, 30, 85); 
 
         ctx.font = 'lighter 27px AlimamaFangYuanTiVF'; 
-        const titleDescription = "的个人年度 Top3 动画";
+        const titleDescription = "的个人年度新番 Top3";
         ctx.fillText(titleDescription, 30, 135); 
 
-        ctx.font = 'lighter 27px AlimamaFangYuanTiVF'; 
-        drawWrappedText(ctx, 'top3.bgmss.fun', canvas.width / 2, 1160, 1200, 100);
+        ctx.font = 'lighter 20px AlimamaFangYuanTiVF'; 
+        drawWrappedText(ctx, 'top3.bgmss.fun', canvas.width / 2, 1150, 1200, 100);
+        drawWrappedText(ctx, '选出你的年度新番 Top3', canvas.width / 2, 1180, 1200, 100);
 
         drawLine(27, 168, 510, 168);
         drawLine(27, 1115, 510, 1115);
@@ -265,7 +267,7 @@ const drawPost = (nickname, avatar, positiveList, negativeList) => {
         drawWrappedText(ctx, positiveTop3Name, 440, 576, 150, 25); 
 
         const negativeTop1Name = negativeList[1].name;
-        drawWrappedTextBottomLeft(ctx, negativeTop1Name, 268, 753, 150, 25); 
+        drawWrappedTextBottomLeft(ctx, negativeTop1Name, 268, 748, 150, 25); 
         const negativeTop2Name = negativeList[2].name;
         drawWrappedTextBottomLeft(ctx, negativeTop2Name, 102, 705, 150, 25); 
         const negativeTop3Name = negativeList[0].name;
@@ -279,8 +281,8 @@ const drawPost = (nickname, avatar, positiveList, negativeList) => {
         drawRadiuImg(39, 370, 124, 175, 8, p2);
         drawRadiuImg(375, 370, 124, 175, 8, p3);
         drawRadiuImg(206, 763, 124, 175, 8, n1);
-        drawRadiuImg(39, 722, 124, 175, 8, n3);
-        drawRadiuImg(375, 722, 124, 175, 8, n2);
+        drawRadiuImg(39, 722, 124, 175, 8, n2);
+        drawRadiuImg(375, 722, 124, 175, 8, n3);
 
         
         const image = canvas.toDataURL('image/png');
