@@ -3,10 +3,6 @@
     <n-global-style />
     <n-notification-provider>
 
-      <a href="https://github.com/AcuLY/BangumiStaffStats" target="_blank" class="header-item">
-        <img src="/github.png" alt="Github">
-      </a>
-
       <Rank class="rank"/>
 
     </n-notification-provider>
@@ -31,6 +27,9 @@ const pinkTheme = {
     primaryColorPressed: '#C71585',
     primaryColorSuppl: '#ff2075',
     borderRadius: '8px',
+  },
+  Notification: {
+    color: '#222222',
   }
 };
 
@@ -40,26 +39,5 @@ const pinkTheme = {
 .rank {
   height: 100vh;
   overflow: hidden;
-}
-
-.header-item {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  z-index: 10;
-}
-
-.header-item img {
-  width: 50px;
-}
-
-@media (max-width: 600px) {
-  .header-item {
-    top: 18px;
-    right: 14px;
-  }
-  .header-item img {
-    width: 32px;
-  }
 }
 </style>

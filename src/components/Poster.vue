@@ -1,27 +1,39 @@
 <template>
-    <canvas ref="posterCanvas" width="540" height="1200"></canvas>
+    <canvas ref="posterCanvas" class="poster-canvas"></canvas>
 </template>
 
 <script setup>
-import { ref } from 'vue';
+import { ref, onMounted } from 'vue';
 
 const posterCanvas = ref(null);
 
-function createHDCanvas(w, h) {
-    var ratio = window.devicePixelRatio || 1;
-    var canvas = document.createElement('canvas');
-    canvas.width = w * ratio;  
-    canvas.height = h * ratio; 
-    canvas.style.width = `${w}px`; 
-    canvas.style.height = `${h}px`; 
+const prepareCanvas = () => {
+    const canvas = posterCanvas.value;
+    if (!canvas) return null;
 
-    canvas.getContext('2d').setTransform(ratio, 0, 0, ratio, 0, 0);
-    return canvas;
-}
+    const ratio = window.devicePixelRatio || 1;
+    canvas.width = 540 * ratio;
+    canvas.height = 1200 * ratio;
+    canvas.style.width = '540px';
+    canvas.style.height = '1200px';
 
-const drawPost = (nickname, avatar, positiveList, negativeList) => {
-    const canvas = createHDCanvas(540, 1200);
-    const ctx = canvas.getContext("2d");
+    const ctx = canvas.getContext('2d');
+    ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+    return ctx;
+};
+
+const getPrimaryName = (anime) => {
+    if (!anime) return '';
+    if (anime.names?.length) {
+        const primary = anime.names.find((item) => !!item);
+        if (primary) return primary;
+    }
+    return anime.name || '';
+};
+
+const drawPost = (nickname, avatar, positiveList, negativeList, options = { download: true }) => {
+    const ctx = prepareCanvas();
+    if (!ctx) return;
 
     function drawLine(x1, y1, x2, y2) {
         ctx.strokeStyle = "#ffffff";
@@ -108,17 +120,109 @@ const drawPost = (nickname, avatar, positiveList, negativeList) => {
         }
     }
 
-    function loadImage(src, isLocal = false) {
+    function splitTextByWidth(ctx, text, maxWidth) {
+        const chars = text.split('');
+        const lines = [];
+        let line = '';
+
+        chars.forEach((char) => {
+            const testLine = line + char;
+            if (ctx.measureText(testLine).width > maxWidth && line) {
+                lines.push(line);
+                line = char;
+            } else {
+                line = testLine;
+            }
+        });
+
+        if (line) lines.push(line);
+        return lines;
+    }
+
+    function layoutNameLines(text, maxWidth, maxHeight) {
+        const minFontSize = 6;
+        const maxLines = Math.max(1, Math.floor(maxHeight / minFontSize));
+
+        for (let lineCount = 1; lineCount <= maxLines; lineCount++) {
+            let fontSize = maxHeight / lineCount;
+            ctx.font = `lighter ${fontSize}px Alibaba-PuHuiTi`;
+            let lines = splitTextByWidth(ctx, text, maxWidth);
+            const nextLineThreshold = lineCount < maxLines ? maxHeight / (lineCount + 1) : minFontSize;
+
+            while ((lines.length > lineCount || fontSize * lineCount > maxHeight) && fontSize > nextLineThreshold) {
+                fontSize -= 1;
+                ctx.font = `lighter ${fontSize}px Alibaba-PuHuiTi`;
+                lines = splitTextByWidth(ctx, text, maxWidth);
+            }
+
+            ctx.font = `lighter ${fontSize}px Alibaba-PuHuiTi`;
+            lines = splitTextByWidth(ctx, text, maxWidth);
+
+            if (lines.length <= lineCount && fontSize * lines.length <= maxHeight) {
+                // If the font has already shrunk past the next line's share, prefer trying more lines.
+                if (fontSize < nextLineThreshold && lineCount < maxLines) {
+                    continue;
+                }
+                return { fontSize, lines };
+            }
+        }
+
+        const finalFontSize = Math.max(minFontSize, maxHeight / maxLines);
+        ctx.font = `lighter ${finalFontSize}px Alibaba-PuHuiTi`;
+        return { fontSize: finalFontSize, lines: splitTextByWidth(ctx, text, maxWidth) };
+    }
+
+    function loadImage(src, { retry = 0 } = {}) {
         return new Promise((resolve, reject) => {
             const img = new Image();
-            img.crossOrigin = 'anonymous';
-            img.src = isLocal ? src : `https://search.bgmss.fun/proxy?url=${src}`;
+
+            // 是否需要跨域（只对外链头像开启）
+            if (/^https?:\/\//.test(src)) {
+                img.crossOrigin = 'anonymous';
+            }
+
             img.onload = () => resolve(img);
-            img.onerror = reject;
+
+            img.onerror = () => {
+                console.error(`[loadImage Error] 加载失败: ${src}`);
+
+                if (retry > 0) {
+                    console.warn(`[loadImage] 正在重试(${retry}) → ${src}`);
+                    // 递归重试
+                    loadImage(src, { retry: retry - 1 })
+                        .then(resolve)
+                        .catch(reject);
+                    return;
+                }
+
+                // 最终失败，返回包含 src 的错误对象
+                reject(new Error(`无法加载图片: ${src}`));
+            };
+
+            img.src = src;
         });
     }
 
-    function drawRadiuImg(x, y, width, height, radius, img) {
+    const EMPTY_IMAGE =
+        "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIW2NkYGBgAAAABQABDQottAAAAABJRU5ErkJggg==";
+
+    const getPosterSrc = (anime) => {
+        if (!anime || !anime.id || anime.id === 0) {
+            return EMPTY_IMAGE;   // 返回透明图
+        }
+
+        return `/posters/${anime.id}.jpg`;
+    };
+
+    const getAvatarSrc = (src) => {
+        if (src === "/avatar.jpg") {
+            return src
+        }
+
+        return `https://top3.bgmss.fun/proxy?url=${src}`
+    }
+
+    function drawRadiusImg(x, y, width, height, radius, img) {
         ctx.save();
         ctx.beginPath();
         ctx.moveTo(x + radius, y);
@@ -133,56 +237,66 @@ const drawPost = (nickname, avatar, positiveList, negativeList) => {
     }
 
     Promise.all([
-        loadImage(avatar),
-        loadImage('/bgm不知道多少.png', true),
-        loadImage('/bgm38.png', true),
-        loadImage(positiveList[1].image),
-        loadImage(positiveList[0].image),
-        loadImage(positiveList[2].image),
-        loadImage(negativeList[1].image),
-        loadImage(negativeList[2].image),
-        loadImage(negativeList[0].image),
+        loadImage(getAvatarSrc(avatar)),
+        loadImage('/positive.png'),
+        loadImage('/negative.png'),
+        loadImage(getPosterSrc(positiveList[1])),
+        loadImage(getPosterSrc(positiveList[0])),
+        loadImage(getPosterSrc(positiveList[2])),
+        loadImage(getPosterSrc(negativeList[1])),
+        loadImage(getPosterSrc(negativeList[2])),
+        loadImage(getPosterSrc(negativeList[0])),
     ]).then(([avatarImg, bgmBzdImg, bgm38Img, p1, p2, p3, n1, n2, n3]) => {
         ctx.clearRect(0, 0, 540, 1200);
 
-        const gradient = ctx.createLinearGradient(0, 0, 0, 1200);
-        gradient.addColorStop(0, "#0F0D10");
-        gradient.addColorStop(0.5, "#253141");
-        gradient.addColorStop(1, "#7d4e71");
+        const linearBg = ctx.createLinearGradient(0, 0, 0, 1200);
+        linearBg.addColorStop(0, "#0f0f1a");
+        linearBg.addColorStop(0.35, "#131324");
+        linearBg.addColorStop(1, "#0c0c12");
 
-        ctx.fillStyle = gradient;
+        ctx.fillStyle = linearBg;
+        ctx.fillRect(0, 0, 540, 1200);
+
+        const radialBg = ctx.createRadialGradient(270, 0, 0, 270, 0, 1080);
+        radialBg.addColorStop(0, "rgba(205, 81, 147, 0.235)");
+        radialBg.addColorStop(0.4, "rgba(205, 81, 147, 0)");
+        radialBg.addColorStop(1, "rgba(0, 0, 0, 0)");
+
+        ctx.fillStyle = radialBg;
         ctx.fillRect(0, 0, 540, 1200);
 
         ctx.fillStyle = '#ffffff';
 
-        let fontSize = 65;
-        ctx.font = 'lighter 65px Alibaba-PuHuiTi';
         const userName = nickname;
-        let textWidth = ctx.measureText(userName).width;
-        while (textWidth > 340 && fontSize > 6) {
-            fontSize -= 1;
-            ctx.font = `lighter ${fontSize}px Alibaba-PuHuiTi`;
-            textWidth = ctx.measureText(userName).width;
-        }
-        ctx.fillText(userName, 30, 85);
+        const maxNameHeight = 65;
+        const maxNameWidth = 340;
+        const { fontSize: nameFontSize, lines: nameLines } = layoutNameLines(userName, maxNameWidth, maxNameHeight);
+        ctx.font = `lighter ${nameFontSize}px Alibaba-PuHuiTi`;
+        const nameLineHeight = nameFontSize;
+        const titleBaseline = 135; // fixed title y-position
+        const nameToTitleGap = 50; // keep original visual gap
+        const nameStartY = titleBaseline - nameToTitleGap - (nameLines.length - 1) * nameLineHeight;
+        nameLines.forEach((line, index) => {
+            ctx.fillText(line, 30, nameStartY + index * nameLineHeight);
+        });
 
         ctx.font = 'lighter 27px Alibaba-PuHuiTi';
-        const titleDescription = "的个人年度新番 Top3";
+        const titleDescription = "的 2025 个人年度新番 Top3";
         ctx.fillText(titleDescription, 30, 135);
 
         ctx.font = 'lighter 20px Alibaba-PuHuiTi';
         drawWrappedText(ctx, 'top3.bgmss.fun', 270, 1150, 1200, 100);
-        drawWrappedText(ctx, '选出你的年度新番 Top3', 270, 1180, 1200, 100);
+        drawWrappedText(ctx, '选出你的 2025 年度新番 Top3', 270, 1180, 1200, 100);
 
         drawLine(27, 168, 510, 168);
         drawLine(27, 1115, 510, 1115);
 
         ctx.font = 'lighter 40px Alibaba-PuHuiTi';
         const positiveTop3 = "正向 Top3";
-        ctx.fillText(positiveTop3, 85, 225);
+        ctx.fillText(positiveTop3, 25, 225);
 
         const negativeTop3 = "反向 Top3";
-        ctx.fillText(negativeTop3, 268, 1078);
+        ctx.fillText(negativeTop3, 328, 1078);
 
 
         const positiveTop1Gradient = ctx.createLinearGradient(194, 264, 194, 264 + 388);
@@ -227,7 +341,7 @@ const drawPost = (nickname, avatar, positiveList, negativeList) => {
         positiveTop1TextGradient.addColorStop(1, 'rgba(227, 196, 114, 1)');
         ctx.font = 'lighter 45px Alibaba-PuHuiTi';
         ctx.fillStyle = positiveTop1TextGradient;
-        ctx.fillText('1', 260, 310);
+        ctx.fillText('1', 256, 310);
 
         const positiveTop2TextGradient = ctx.createLinearGradient(90, 321, 90, 356);
         positiveTop2TextGradient.addColorStop(0, 'rgba(255, 255, 255, 1)');
@@ -268,30 +382,30 @@ const drawPost = (nickname, avatar, positiveList, negativeList) => {
         ctx.fillStyle = '#ffffff';
         ctx.font = 'lighter 18px Alibaba-PuHuiTi';
 
-        const positiveTop1Name = positiveList[1].name;
+        const positiveTop1Name = getPrimaryName(positiveList[1]);
         drawWrappedText(ctx, positiveTop1Name, 268, 532, 130, 25);
-        const positiveTop2Name = positiveList[0].name;
+        const positiveTop2Name = getPrimaryName(positiveList[0]);
         drawWrappedText(ctx, positiveTop2Name, 102, 576, 130, 25);
-        const positiveTop3Name = positiveList[2].name;
+        const positiveTop3Name = getPrimaryName(positiveList[2]);
         drawWrappedText(ctx, positiveTop3Name, 440, 576, 130, 25);
 
-        const negativeTop1Name = negativeList[1].name;
+        const negativeTop1Name = getPrimaryName(negativeList[1]);
         drawWrappedTextBottomLeft(ctx, negativeTop1Name, 268, 748, 130, 25);
-        const negativeTop2Name = negativeList[2].name;
+        const negativeTop2Name = getPrimaryName(negativeList[2]);
         drawWrappedTextBottomLeft(ctx, negativeTop2Name, 102, 705, 130, 25);
-        const negativeTop3Name = negativeList[0].name;
+        const negativeTop3Name = getPrimaryName(negativeList[0]);
         drawWrappedTextBottomLeft(ctx, negativeTop3Name, 440, 705, 130, 25);
 
 
-        drawRadiuImg(390, 25, 120, 120, 15, avatarImg);
-        ctx.drawImage(bgmBzdImg, 32, 190, 40, 40);
-        ctx.drawImage(bgm38Img, 465, 1040, 40, 40);
-        drawRadiuImg(206, 326, 124, 175, 8, p1);
-        drawRadiuImg(39, 370, 124, 175, 8, p2);
-        drawRadiuImg(375, 370, 124, 175, 8, p3);
-        drawRadiuImg(206, 763, 124, 175, 8, n1);
-        drawRadiuImg(39, 722, 124, 175, 8, n2);
-        drawRadiuImg(375, 722, 124, 175, 8, n3);
+        drawRadiusImg(390, 25, 120, 120, 15, avatarImg);
+        ctx.drawImage(bgmBzdImg, 218, 188, 40, 40);
+        ctx.drawImage(bgm38Img, 275, 1040, 40, 40);
+        drawRadiusImg(206, 326, 124, 175, 8, p1);
+        drawRadiusImg(39, 370, 124, 175, 8, p2);
+        drawRadiusImg(375, 370, 124, 175, 8, p3);
+        drawRadiusImg(206, 763, 124, 175, 8, n1);
+        drawRadiusImg(39, 722, 124, 175, 8, n2);
+        drawRadiusImg(375, 722, 124, 175, 8, n3);
 
         function dataURItoBlob(dataURI) {
             const byteString = atob(dataURI.split(',')[1]);
@@ -304,16 +418,19 @@ const drawPost = (nickname, avatar, positiveList, negativeList) => {
             return new Blob([ab], { type: mimeString });
         }
 
-        const image = canvas.toDataURL('image/png');
-        const link = document.createElement('a');
-        const blob = dataURItoBlob(image);
-        const url = URL.createObjectURL(blob);
-        link.href = url;
-        link.download = 'top3.png';
-        link.click();
-        URL.revokeObjectURL(url);
+        const image = ctx.canvas.toDataURL('image/png');
+        if (options.download) {
+            const link = document.createElement('a');
+            const blob = dataURItoBlob(image);
+            const url = URL.createObjectURL(blob);
+            link.href = url;
+            link.download = 'top3.png';
+            link.click();
+            URL.revokeObjectURL(url);
+        }
+        return image;
     }).catch(error => {
-        console.error("One or more images failed to load:", error);
+        console.log("One or more images failed to load:", error);
     });
 };
 
@@ -324,7 +441,38 @@ const exportPng = (nickname, avatar, positiveList, negativeList) => {
 
 };
 
+const renderPreview = () => {
+    const demoPositive = [
+        { id: 244931, names: ['示例正向 1'] },
+        { id: 282031, names: ['示例正向 2'] },
+        { id: 285757, names: ['示例正向 3'] }
+    ];
+    const demoNegative = [
+        { id: 326859, names: ['示例反向 1'] },
+        { id: 336268, names: ['示例反向 2'] },
+        { id: 371829, names: ['示例反向 3'] }
+    ];
+
+    drawPost('AcuL', '/avatar.jpg', demoPositive, demoNegative, { download: false });
+};
+
+onMounted(() => {
+    if (import.meta.env.DEV) {
+        renderPreview();
+    }
+});
+
 defineExpose({
-    exportPng
+    exportPng,
+    renderPreview
 })
 </script>
+
+<style scoped>
+.poster-canvas {
+    width: 540px;
+    height: 1200px;
+    border-radius: 12px;
+    background: rgba(0, 0, 0, 0.1);
+}
+</style>

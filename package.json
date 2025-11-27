@@ -9,6 +9,8 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@vicons/ionicons5": "^0.13.0",
+    "@vicons/utils": "^0.1.4",
     "axios": "^1.7.9",
     "naive-ui": "^2.40.1",
     "unplugin-auto-import": "^0.18.3",
