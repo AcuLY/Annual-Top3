@@ -4,6 +4,7 @@ from datetime import datetime
 
 INPUT_FILE = "subject.jsonlines"
 OUTPUT_FILE = "./src/constant/2025.json"
+OUTPUT_FILE_OBSCURE = "./src/constant/2025-obscure.json"
 
 def extract_infobox_names(infobox: str) -> list:
     """从 Infobox 字符串中提取 中文名 与 别名 列表"""
@@ -40,6 +41,7 @@ def date_is_2025(date_str: str) -> bool:
 
 def main():
     results = []
+    results_obscure = []
 
     with open(INPUT_FILE, "r", encoding="utf-8") as f:
         for line in f:
@@ -54,8 +56,6 @@ def main():
             if not date_is_2025(item.get("date", "")):
                 continue
             if item.get("nsfw"):
-                continue
-            if sum([num for num in item.get("score_details").values()]) < 100:
                 continue
 
             names = []
@@ -88,21 +88,30 @@ def main():
 
             # 去重
             names = list(dict.fromkeys(cleaned))
-
-            results.append({
+            
+            subject = {
                 "id": item["id"],
                 "names": names,
                 "date": item["date"]
-            })
+            }
+            
+            if sum([num for num in item.get("score_details").values()]) < 100:
+                results_obscure.append(subject)
+            else:
+                results.append(subject)
     
     results.sort(key=lambda x: x["date"])
     for r in results:
         r.pop("date", None)
-
+    
+    for r in results_obscure:
+        r.pop("date", None)
 
     # 输出为 JSON Lines
     with open(OUTPUT_FILE, "w", encoding="utf-8") as f:
         json.dump(results, f, ensure_ascii=False, indent=2)
+    with open(OUTPUT_FILE_OBSCURE, "w", encoding="utf-8") as f:
+        json.dump(results_obscure, f, ensure_ascii=False, indent=2)
 
     print(f"Done! {len(results)} records written to {OUTPUT_FILE}")
 

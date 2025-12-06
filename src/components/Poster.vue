@@ -31,6 +31,11 @@ const getPrimaryName = (anime) => {
     return anime.name || '';
 };
 
+const truncateText = (text, maxLength = 21) => {
+    const safeText = text || '';
+    return safeText.length > maxLength ? `${safeText.slice(0, maxLength)}...` : safeText;
+};
+
 const drawPost = (nickname, avatar, positiveList, negativeList, options = { download: true }) => {
     const ctx = prepareCanvas();
     if (!ctx) return;
@@ -382,18 +387,18 @@ const drawPost = (nickname, avatar, positiveList, negativeList, options = { down
         ctx.fillStyle = '#ffffff';
         ctx.font = 'lighter 18px Alibaba-PuHuiTi';
 
-        const positiveTop1Name = getPrimaryName(positiveList[1]);
+        const positiveTop1Name = truncateText(getPrimaryName(positiveList[1]));
         drawWrappedText(ctx, positiveTop1Name, 268, 532, 130, 25);
-        const positiveTop2Name = getPrimaryName(positiveList[0]);
+        const positiveTop2Name = truncateText(getPrimaryName(positiveList[0]));
         drawWrappedText(ctx, positiveTop2Name, 102, 576, 130, 25);
-        const positiveTop3Name = getPrimaryName(positiveList[2]);
+        const positiveTop3Name = truncateText(getPrimaryName(positiveList[2]));
         drawWrappedText(ctx, positiveTop3Name, 440, 576, 130, 25);
 
-        const negativeTop1Name = getPrimaryName(negativeList[1]);
+        const negativeTop1Name = truncateText(getPrimaryName(negativeList[1]));
         drawWrappedTextBottomLeft(ctx, negativeTop1Name, 268, 748, 130, 25);
-        const negativeTop2Name = getPrimaryName(negativeList[2]);
+        const negativeTop2Name = truncateText(getPrimaryName(negativeList[2]));
         drawWrappedTextBottomLeft(ctx, negativeTop2Name, 102, 705, 130, 25);
-        const negativeTop3Name = getPrimaryName(negativeList[0]);
+        const negativeTop3Name = truncateText(getPrimaryName(negativeList[0]));
         drawWrappedTextBottomLeft(ctx, negativeTop3Name, 440, 705, 130, 25);
 
 
@@ -445,11 +450,11 @@ const renderPreview = () => {
     const demoPositive = [
         { id: 244931, names: ['示例正向 1'] },
         { id: 282031, names: ['示例正向 2'] },
-        { id: 285757, names: ['示例正向 3'] }
+        { id: 285757, names: ['sdfsd 从零开始的异世界生活 第三季 反'] }
     ];
     const demoNegative = [
-        { id: 326859, names: ['示例反向 1'] },
-        { id: 336268, names: ['示例反向 2'] },
+        { id: 326859, names: ['Re：从零开始的异世界生活 第三季 反击篇'] },
+        { id: 336268, names: ['示例反向 拉克丝到家了发卡机十六大开发机了哇科技了哇拉克丝接待来访卡'] },
         { id: 371829, names: ['示例反向 3'] }
     ];
 

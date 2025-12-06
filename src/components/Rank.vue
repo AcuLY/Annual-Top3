@@ -137,7 +137,7 @@
                                 </template>
                             </n-switch>
                         </n-flex>
-                        <p>列表按播出时间排序，拖拽或点击（先点动画再点名次）添加到 Top3</p>
+                        <p>列表按播出时间排序，部分冷门作品仅在搜索或者导入收藏时展示。<br/>拖拽或点击（先点动画再点名次）添加到 Top3，不需要填满也可以导出海报。</p>
                     </div>
                     <n-input v-model:value="searchQuery" :size="isMobile ? 'small' : 'large'" clearable
                         placeholder="搜索动画名称" />
@@ -181,7 +181,31 @@ import {
 } from 'naive-ui';
 import axios from 'axios';
 import Poster from './Poster.vue';
-import fullList from '../constant/2025.json';
+import mainList from '../constant/2025.json';
+import obscureList from '../constant/2025-obscure.json';
+
+const animeMap = new Map();
+[...mainList, ...obscureList].forEach((anime) => {
+    if (anime?.id && !animeMap.has(anime.id)) {
+        animeMap.set(anime.id, anime);
+    }
+});
+
+const getAnimeById = (id) => {
+    if (!id) return null;
+    return animeMap.get(id) || null;
+};
+
+const mergeUniqueById = (...lists) => {
+    const merged = [];
+    const visited = new Set();
+    lists.flat().forEach((anime) => {
+        if (!anime?.id || visited.has(anime.id)) return;
+        visited.add(anime.id);
+        merged.push(anime);
+    });
+    return merged;
+};
 
 /**
  * 基本状态
@@ -205,7 +229,7 @@ const userList = ref([]);
  * 列表 & 搜索
  */
 const animeList = computed(() =>
-    chooseFromCollectedAnime.value ? userList.value : fullList
+    chooseFromCollectedAnime.value ? userList.value : mainList
 );
 
 const searchQuery = ref('');
@@ -214,7 +238,11 @@ const filteredAnimeList = computed(() => {
     const query = searchQuery.value.trim().toLowerCase();
     if (!query) return source;
 
-    return source.filter(anime => {
+    const searchPool = chooseFromCollectedAnime.value
+        ? source
+        : mergeUniqueById(source, obscureList);
+
+    return searchPool.filter(anime => {
         const nameCandidates = (anime.names || [])
             .filter(Boolean)
             .join(' ')
@@ -569,13 +597,19 @@ const fetchAnimeList = () => {
                 return
             }
 
-            let idSet = new Set(data)
-            userList.value = []
-            for (const subject of fullList) {
-                if (idSet.has(subject.id)) {
-                    userList.value.push(subject)
+            const idSet = new Set(data);
+            const collected = [];
+            const collectFromList = (list) => {
+                for (const subject of list) {
+                    if (idSet.has(subject.id)) {
+                        collected.push(subject);
+                        idSet.delete(subject.id);
+                    }
                 }
-            }
+            };
+            collectFromList(mainList);
+            collectFromList(obscureList);
+            userList.value = collected;
 
             chooseFromCollectedAnime.value = true;
             fetchNickname();
@@ -774,7 +808,7 @@ onBeforeUnmount(() => {
 
 @media (max-width: 600px) {
     .rank-card {
-        width: 300px;
+        width: 240px;
         padding: 6px 6px;
     }
 
@@ -855,16 +889,22 @@ onBeforeUnmount(() => {
 
 @media (max-width: 600px) {
     .slot {
-        width: 75px;
-        height: 106.5px;
-        border-radius: 8px;
+        width: 50px;
+        height: 71px;
+        border-radius: 6px;
     }
 
     .slot-image {
-        width: 75px;
-        height: 106.5px;
-        border-radius: 8px;
-        margin: 0px 10px 0px 10px;
+        width: 50px;
+        height: 71px;
+        border-radius: 6px;
+        margin: 0px 8px;
+    }
+
+    .slot-remove {
+        top: -8px;
+        width: 20px;
+        height: 20px;
     }
 }
 
@@ -955,20 +995,24 @@ onBeforeUnmount(() => {
     }
 
     .anime-list-title p {
-        font-size: 12px;
+        font-size: 10px;
+    }
+
+    .anime-list-container {
+        padding-right: 24px;
     }
 
     .anime-list-container img {
-        width: 55px;
-        height: 78px;
-        border-radius: 10px;
+        width: 50px;
+        height: 71px;
+        border-radius: 6px;
         transition: all 0.1s;
     }
 
     .anime-item {
         width: 55px;
         gap: 4px;
-        margin-right: -4px;
+        margin-right: -8px;
     }
 }
 

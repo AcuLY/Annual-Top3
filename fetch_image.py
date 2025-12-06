@@ -2,12 +2,12 @@ import json
 import os
 import requests
 
-INPUT_FILE = "./src/constant/2025.json"
+INPUT_FILE = "./src/constant/2025-obscure.json"
 OUTPUT_DIR = "./src/assets/images"
 
 def download_image(url, path):
     try:
-        resp = requests.get(url, timeout=10)
+        resp = requests.get(url, timeout=10, headers={"User-Agent": "AcuL/Annual-Top3/1.0 (Web) (https://github.com/AcuLY/Annual-Top3)"})
         resp.raise_for_status()
         with open(path, "wb") as f:
             f.write(resp.content)
@@ -23,17 +23,17 @@ def main():
         items = json.load(f)
 
     for item in items:
-        img_url = item.get("image")
-        if not img_url:
-            continue
-
         img_id = item.get("id")
+        img_url = f"https://api.bgm.tv/v0/subjects/{img_id}/image?type=small"
+
         ext = img_url.split("?")[0].split(".")[-1]  # 取扩展名
         if len(ext) > 5:
             ext = "jpg"
 
         filename = f"{img_id}.{ext}"
         filepath = os.path.join(OUTPUT_DIR, filename)
+        if os.path.exists(filepath):
+            continue
 
         download_image(img_url, filepath)
 
